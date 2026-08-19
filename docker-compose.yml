@@ -1,0 +1,41 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: vulnscope
+      POSTGRES_USER: vulnscope
+      POSTGRES_PASSWORD: change-this-local-password
+    volumes:
+      - vulnscope-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vulnscope -d vulnscope"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://vulnscope:change-this-local-password@postgres:5432/vulnscope
+      DEMO_MODE: "true"
+      ALLOWED_WEB_ORIGINS: http://localhost:5186
+    ports:
+      - "4700:4700"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    build:
+      context: apps/web
+      args:
+        VITE_API_URL: http://localhost:4700
+    ports:
+      - "5186:80"
+    depends_on:
+      - api
+
+volumes:
+  vulnscope-postgres:
